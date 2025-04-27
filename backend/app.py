@@ -57,6 +57,17 @@ def create_app(test_config=None):
         programs = HealthProgram.query.all()
         return jsonify([program.to_dict() for program in programs])
 
+    @app.route('/api/programs/<int:id>', methods=['GET'])
+    def get_program(id):
+        """Get a specific health program by ID"""
+        program = HealthProgram.query.get(id)
+        
+        if not program:
+            return jsonify({'error': 'Program not found'}), 404
+
+        return jsonify({'program': program.to_dict()})
+
+
     @app.route('/api/programs/<int:id>', methods=['DELETE'])
     def delete_program(id):
         """Delete a health program by ID"""
@@ -70,7 +81,7 @@ def create_app(test_config=None):
 
         return jsonify({'message': 'Program deleted successfully'}), 200
 
-    @app.route('/api/programs/<int:id>', methods=['PUT'])
+    @app.route('/api/programs/<int:id>', methods=['PATCH'])
     def update_program(id):
         """Update an existing health program"""
         program = HealthProgram.query.get(id)
@@ -87,6 +98,7 @@ def create_app(test_config=None):
         db.session.commit()
 
         return jsonify({'message': 'Program updated successfully', 'program': program.to_dict()}), 200
+
 
     # Client Endpoints
     @app.route('/api/clients', methods=['POST'])
@@ -118,7 +130,11 @@ def create_app(test_config=None):
         db.session.add(client)
         db.session.commit()
         
-        return jsonify({'message': 'Client registered successfully', 'client': client.to_dict_basic()}), 201
+        return jsonify({
+            'message': 'Client registered successfully', 
+            'client': client.to_dict_basic()  # Ensure to return the full client data
+        }), 201
+
 
     @app.route('/api/clients', methods=['GET'])
     def search_clients():
@@ -183,29 +199,39 @@ def create_app(test_config=None):
         enrollments = Enrollment.query.filter_by(client_id=client_id).all()
         return jsonify([enrollment.to_dict() for enrollment in enrollments])
     
-    @app.route('/api/enrollments/<int:enrollment_id>', methods=['PUT'])
-    def update_enrollment_status(enrollment_id):
-        """Update enrollment status (complete, suspend, etc)"""
-        enrollment = Enrollment.query.get_or_404(enrollment_id)
-        
-        data = request.get_json()
-        if 'status' not in data:
-            return jsonify({'error': 'Status is required'}), 400
-            
-        allowed_statuses = ['active', 'completed', 'suspended']
-        if data['status'] not in allowed_statuses:
-            return jsonify({'error': f'Status must be one of: {", ".join(allowed_statuses)}'}), 400
-        
-        enrollment.status = data['status']
-        if 'notes' in data:
-            enrollment.notes = data['notes']
-            
-        db.session.commit()
-        
-        return jsonify({
-            'message': f'Enrollment status updated to {data["status"]}',
-            'enrollment': enrollment.to_dict()
-        })
+    @app.route('/api/enrollments', methods=['POST'])
+def create_enrollment():
+    """Enroll a client in a program"""
+    data = request.get_json()
+    
+    client_id = data.get('client_id')
+    program_id = data.get('program_id')
+    
+    if not client_id or not program_id:
+        return jsonify({'error': 'Client ID and Program ID are required'}), 400
+    
+    # Check if this enrollment already exists
+    existing_enrollment = Enrollment.query.filter_by(
+        client_id=client_id,
+        program_id=program_id,
+        status='active'
+    ).first()
+    
+    if existing_enrollment:
+        return jsonify({'error': 'Client is already enrolled in this program'}), 409
+    
+    # Create new enrollment
+    new_enrollment = Enrollment(
+        client_id=client_id, 
+        program_id=program_id,
+        enrolled_by=None  # No current_user
+    )
+    
+    db.session.add(new_enrollment)
+    db.session.commit()
+    
+    return jsonify({'message': 'Client enrolled successfully', 'enrollment': new_enrollment.to_dict()}), 201
+
 
     @app.route('/api/users', methods=['POST'])
     def create_user():
