@@ -102,12 +102,28 @@ def create_app(test_config=None):
 
 
     # Client Endpoints
-    # IMPORTANT: Fixed by removing duplicate route definitions
     @app.route('/api/clients/<int:client_id>', methods=['GET'])
     def get_client(client_id):
         """Get a client's profile by ID"""
         client = Client.query.get_or_404(client_id)
-        return jsonify(client.to_dict())
+        
+        # Get the client's enrolled programs
+        enrollments = Enrollment.query.filter_by(client_id=client_id).all()
+        
+        # Create a dictionary with client data and their programs
+        client_data = client.to_dict()
+        client_data['programs'] = []
+        
+        for enrollment in enrollments:
+            program = HealthProgram.query.get(enrollment.program_id)
+            if program:
+                client_data['programs'].append(program.to_dict())
+        
+        # Add program count to the response
+        client_data['program_count'] = len(client_data['programs'])
+        
+        return jsonify(client_data)
+
 
     @app.route('/api/clients/<int:client_id>', methods=['DELETE'])
     def delete_client(client_id):

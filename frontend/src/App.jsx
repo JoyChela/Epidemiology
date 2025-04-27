@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Dashboard from './components/Dashboard';
-import ClientList from './components/clientList.jsx';
-import ClientDetail from './components/ClientDetails.jsx';
+import ClientList from './components/ClientList';
+import ClientDetail from './components/ClientDetails';
 import ClientForm from './components/ClientForm';
 import ProgramList from './components/ProgramList';
 import ProgramForm from './components/ProgramForm';
