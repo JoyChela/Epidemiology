@@ -64,29 +64,40 @@ class Enrollment(db.Model):
         }
 
 class Client(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    __tablename__ = 'client'
+    
+    id = db.Column(db.Integer, primary_key=True)  # Add this primary key
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
     date_of_birth = db.Column(db.Date, nullable=False)
-    gender = db.Column(db.String(10), nullable=False)
-    contact_number = db.Column(db.String(15))
+    gender = db.Column(db.String(20), nullable=False)
+    contact_number = db.Column(db.String(20))
     email = db.Column(db.String(100))
-    address = db.Column(db.String(200))
-    registration_date = db.Column(db.DateTime, default=datetime.utcnow)
+    address = db.Column(db.Text)
+    registered_at = db.Column(db.DateTime, default=datetime.utcnow)
     registered_by = db.Column(db.Integer, db.ForeignKey('user.id'))
     
     # Relationships
-    enrollments = db.relationship('Enrollment', back_populates='client', cascade='all, delete-orphan')
-    registrar = db.relationship('User')
+    enrollments = db.relationship('Enrollment', backref='client', lazy=True)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'date_of_birth': self.date_of_birth.isoformat() if self.date_of_birth else None,
+            'gender': self.gender,
+            'contact_number': self.contact_number,
+            'email': self.email,
+            'address': self.address,
+            'registered_at': self.registered_at.isoformat() if self.registered_at else None
+        }
     
     def to_dict_basic(self):
         return {
             'id': self.id,
             'first_name': self.first_name,
-            'last_name': self.last_name,
-            'gender': self.gender,
-            'program_count': len(self.enrollments) if hasattr(self, 'enrollments') else 0,
-            # other fields you want to include
+            'last_name': self.last_name
         }
     
     def to_dict_basic(self):

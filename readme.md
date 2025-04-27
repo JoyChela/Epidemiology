@@ -122,6 +122,6 @@ health-information-system/
 - Reporting and analytics
 - Mobile application
 
-## License
+## Additional Resources
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+- [Project Presentation](https://app.presentations.ai/view/4XCMJv)
