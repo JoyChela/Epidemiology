@@ -158,6 +158,29 @@ def create_app(test_config=None):
         client = Client.query.get_or_404(client_id)
         return jsonify(client.to_dict())
 
+    @app.route('/api/clients/<int:client_id>', methods=['GET', 'DELETE'])
+    def get_client(client_id):
+        """Get or delete a client's profile by ID"""
+        if request.method == 'DELETE':
+            # Delete logic
+            client = Client.query.get_or_404(client_id)
+            
+            # Delete associated enrollments first (to avoid foreign key constraints)
+            enrollments = Enrollment.query.filter_by(client_id=client_id).all()
+            for enrollment in enrollments:
+                db.session.delete(enrollment)
+            
+            db.session.delete(client)
+            db.session.commit()
+            
+            return jsonify({'message': 'Client deleted successfully'}), 200
+        else:
+            # GET logic (your existing code)
+            client = Client.query.get_or_404(client_id)
+            return jsonify(client.to_dict())
+
+
+
     # Enrollment Endpoints
     @app.route('/api/clients/<int:client_id>/programs/<int:program_id>', methods=['POST'])
     def enroll_client(client_id, program_id):

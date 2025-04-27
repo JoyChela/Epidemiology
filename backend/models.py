@@ -79,20 +79,15 @@ class Client(db.Model):
     enrollments = db.relationship('Enrollment', back_populates='client', cascade='all, delete-orphan')
     registrar = db.relationship('User')
     
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'first_name': self.first_name,
-            'last_name': self.last_name,
-            'date_of_birth': self.date_of_birth.isoformat() if self.date_of_birth else None,
-            'gender': self.gender,
-            'contact_number': self.contact_number,
-            'email': self.email,
-            'address': self.address,
-            'registration_date': self.registration_date.isoformat(),
-            'registered_by': self.registered_by,
-            'programs': [enrollment.program.to_dict_basic() for enrollment in self.enrollments if enrollment.status == 'active']
-        }
+    def to_dict_basic(self):
+    return {
+        'id': self.id,
+        'first_name': self.first_name,
+        'last_name': self.last_name,
+        'gender': self.gender,
+        'program_count': len(self.enrollments) if hasattr(self, 'enrollments') else 0,
+        # other fields you want to include
+    }
     
     def to_dict_basic(self):
         return {
