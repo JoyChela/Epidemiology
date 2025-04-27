@@ -80,14 +80,14 @@ class Client(db.Model):
     registrar = db.relationship('User')
     
     def to_dict_basic(self):
-    return {
-        'id': self.id,
-        'first_name': self.first_name,
-        'last_name': self.last_name,
-        'gender': self.gender,
-        'program_count': len(self.enrollments) if hasattr(self, 'enrollments') else 0,
-        # other fields you want to include
-    }
+        return {
+            'id': self.id,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'gender': self.gender,
+            'program_count': len(self.enrollments) if hasattr(self, 'enrollments') else 0,
+            # other fields you want to include
+        }
     
     def to_dict_basic(self):
         return {

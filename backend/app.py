@@ -7,7 +7,8 @@ from flask_cors import CORS
 def create_app(test_config=None):
     # Create and configure the app
     app = Flask(__name__, instance_relative_config=True)
-    CORS(app)
+    # Explicitly configure CORS to allow DELETE methods
+    CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "DELETE", "PATCH"]}})
     
     if test_config is None:
         app.config.from_mapping(
@@ -101,6 +102,53 @@ def create_app(test_config=None):
 
 
     # Client Endpoints
+    # IMPORTANT: Fixed by removing duplicate route definitions
+    @app.route('/api/clients/<int:client_id>', methods=['GET'])
+    def get_client(client_id):
+        """Get a client's profile by ID"""
+        client = Client.query.get_or_404(client_id)
+        return jsonify(client.to_dict())
+
+    @app.route('/api/clients/<int:client_id>', methods=['DELETE'])
+    def delete_client(client_id):
+        """Delete a client by ID"""
+        client = Client.query.get_or_404(client_id)
+        
+        # Delete associated enrollments first (to avoid foreign key constraints)
+        enrollments = Enrollment.query.filter_by(client_id=client_id).all()
+        for enrollment in enrollments:
+            db.session.delete(enrollment)
+        
+        db.session.delete(client)
+        db.session.commit()
+        
+        return jsonify({'message': 'Client deleted successfully'}), 200
+
+    @app.route('/api/clients', methods=['GET'])
+    def search_clients():
+        """Search for clients with optional filters"""
+        first_name = request.args.get('first_name')
+        last_name = request.args.get('last_name')
+        search_term = request.args.get('search')  # General search parameter
+        
+        query = Client.query
+        
+        if search_term:
+            # Search in both first and last name with OR logic
+            query = query.filter(
+                (Client.first_name.ilike(f'%{search_term}%')) | 
+                (Client.last_name.ilike(f'%{search_term}%'))
+            )
+        else:
+            # Keep original specific field search
+            if first_name:
+                query = query.filter(Client.first_name.ilike(f'%{first_name}%'))
+            if last_name:
+                query = query.filter(Client.last_name.ilike(f'%{last_name}%'))
+        
+        clients = query.all()
+        return jsonify([client.to_dict_basic() for client in clients])
+
     @app.route('/api/clients', methods=['POST'])
     def register_client():
         """Register a new client"""
@@ -132,54 +180,8 @@ def create_app(test_config=None):
         
         return jsonify({
             'message': 'Client registered successfully', 
-            'client': client.to_dict_basic()  # Ensure to return the full client data
+            'client': client.to_dict_basic()
         }), 201
-
-
-    @app.route('/api/clients', methods=['GET'])
-    def search_clients():
-        """Search for clients with optional filters"""
-        first_name = request.args.get('first_name')
-        last_name = request.args.get('last_name')
-        
-        query = Client.query
-        
-        if first_name:
-            query = query.filter(Client.first_name.ilike(f'%{first_name}%'))
-        if last_name:
-            query = query.filter(Client.last_name.ilike(f'%{last_name}%'))
-        
-        clients = query.all()
-        return jsonify([client.to_dict_basic() for client in clients])
-
-    @app.route('/api/clients/<int:client_id>', methods=['GET'])
-    def get_client(client_id):
-        """Get a client's profile by ID"""
-        client = Client.query.get_or_404(client_id)
-        return jsonify(client.to_dict())
-
-    @app.route('/api/clients/<int:client_id>', methods=['GET', 'DELETE'])
-    def get_client(client_id):
-        """Get or delete a client's profile by ID"""
-        if request.method == 'DELETE':
-            # Delete logic
-            client = Client.query.get_or_404(client_id)
-            
-            # Delete associated enrollments first (to avoid foreign key constraints)
-            enrollments = Enrollment.query.filter_by(client_id=client_id).all()
-            for enrollment in enrollments:
-                db.session.delete(enrollment)
-            
-            db.session.delete(client)
-            db.session.commit()
-            
-            return jsonify({'message': 'Client deleted successfully'}), 200
-        else:
-            # GET logic (your existing code)
-            client = Client.query.get_or_404(client_id)
-            return jsonify(client.to_dict())
-
-
 
     # Enrollment Endpoints
     @app.route('/api/clients/<int:client_id>/programs/<int:program_id>', methods=['POST'])
@@ -214,47 +216,39 @@ def create_app(test_config=None):
             'message': f'Client enrolled in {program.name} successfully',
             'enrollment': enrollment.to_dict()
         })
-
-    @app.route('/api/clients/<int:client_id>/programs', methods=['GET'])
-    def get_client_programs(client_id):
-        """Get all programs a client is enrolled in"""
-        client = Client.query.get_or_404(client_id)
-        enrollments = Enrollment.query.filter_by(client_id=client_id).all()
-        return jsonify([enrollment.to_dict() for enrollment in enrollments])
     
     @app.route('/api/enrollments', methods=['POST'])
-def create_enrollment():
-    """Enroll a client in a program"""
-    data = request.get_json()
-    
-    client_id = data.get('client_id')
-    program_id = data.get('program_id')
-    
-    if not client_id or not program_id:
-        return jsonify({'error': 'Client ID and Program ID are required'}), 400
-    
-    # Check if this enrollment already exists
-    existing_enrollment = Enrollment.query.filter_by(
-        client_id=client_id,
-        program_id=program_id,
-        status='active'
-    ).first()
-    
-    if existing_enrollment:
-        return jsonify({'error': 'Client is already enrolled in this program'}), 409
-    
-    # Create new enrollment
-    new_enrollment = Enrollment(
-        client_id=client_id, 
-        program_id=program_id,
-        enrolled_by=None  # No current_user
-    )
-    
-    db.session.add(new_enrollment)
-    db.session.commit()
-    
-    return jsonify({'message': 'Client enrolled successfully', 'enrollment': new_enrollment.to_dict()}), 201
-
+    def create_enrollment():
+        """Enroll a client in a program"""
+        data = request.get_json()
+        
+        client_id = data.get('client_id')
+        program_id = data.get('program_id')
+        
+        if not client_id or not program_id:
+            return jsonify({'error': 'Client ID and Program ID are required'}), 400
+        
+        # Check if this enrollment already exists
+        existing_enrollment = Enrollment.query.filter_by(
+            client_id=client_id,
+            program_id=program_id,
+            status='active'
+        ).first()
+        
+        if existing_enrollment:
+            return jsonify({'error': 'Client is already enrolled in this program'}), 409
+        
+        # Create new enrollment
+        new_enrollment = Enrollment(
+            client_id=client_id, 
+            program_id=program_id,
+            enrolled_by=None  # No current_user
+        )
+        
+        db.session.add(new_enrollment)
+        db.session.commit()
+        
+        return jsonify({'message': 'Client enrolled successfully', 'enrollment': new_enrollment.to_dict()}), 201
 
     @app.route('/api/users', methods=['POST'])
     def create_user():
@@ -302,7 +296,6 @@ def create_enrollment():
         db.session.delete(user)
         db.session.commit()
         return jsonify({'message': 'User deleted successfully'})
-
 
     # --- Enrollment Management Endpoints ---
     @app.route('/api/enrollments', methods=['GET'])
