@@ -1,4 +1,15 @@
-class Client(db.Model):
+from sqlalchemy import MetaData
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy_serializer import SerializerMixin
+import uuid
+import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
+
+# Initialize MetaData and SQLAlchemy
+metadata = MetaData()
+db = SQLAlchemy(metadata=metadata)
+
+class Client(db.Model, SerializerMixin):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
@@ -12,6 +23,7 @@ class Client(db.Model):
     # Relationship with programs through enrollments
     enrollments = db.relationship('Enrollment', back_populates='client', cascade='all, delete-orphan')
     
+    # SerializerMixin provides the to_dict method, but we'll override it to fit your structure
     def to_dict(self):
         return {
             'id': self.id,
@@ -26,7 +38,7 @@ class Client(db.Model):
             'programs': [enrollment.program.to_dict() for enrollment in self.enrollments]
         }
 
-class HealthProgram(db.Model):
+class HealthProgram(db.Model, SerializerMixin):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = db.Column(db.String(100), nullable=False, unique=True)
     description = db.Column(db.Text)
@@ -43,7 +55,7 @@ class HealthProgram(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
-class Enrollment(db.Model):
+class Enrollment(db.Model, SerializerMixin):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     client_id = db.Column(db.String(36), db.ForeignKey('client.id'), nullable=False)
     program_id = db.Column(db.String(36), db.ForeignKey('health_program.id'), nullable=False)
@@ -57,7 +69,7 @@ class Enrollment(db.Model):
     # Add a unique constraint to prevent duplicate enrollments
     __table_args__ = (db.UniqueConstraint('client_id', 'program_id', name='unique_enrollment'),)
 
-class User(db.Model):
+class User(db.Model, SerializerMixin):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
