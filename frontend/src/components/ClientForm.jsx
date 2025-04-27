@@ -24,7 +24,7 @@ const ClientForm = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
+  
     try {
       const response = await fetch('http://localhost:5000/api/clients', {
         method: 'POST',
@@ -33,21 +33,25 @@ const ClientForm = () => {
         },
         body: JSON.stringify(formData),
       });
-      
+  
       const data = await response.json();
-      
+  
       if (!response.ok) {
         throw new Error(data.error || 'Failed to register client');
       }
-      
+  
+      // Ensure you use the 'client' object from the response
+      const newClient = data.client; // This assumes your response contains the 'client' object
+  
       // Redirect to the new client's profile
-      navigate(`/clients/${data.id}`);
+      navigate(`/clients/${newClient.id}`);
     } catch (err) {
       setError(err.message);
       console.error('Error registering client:', err);
       setLoading(false);
     }
   };
+  
 
   return (
     <div className="client-form-container">

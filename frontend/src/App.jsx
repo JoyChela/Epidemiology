@@ -6,6 +6,7 @@ import ClientDetail from './components/ClientDetails.jsx';
 import ClientForm from './components/ClientForm';
 import ProgramList from './components/ProgramList';
 import ProgramForm from './components/ProgramForm';
+import ProgramEdit from './components/ProgramEdit.jsx';
 import Navbar from './components/Navbar';
 import './App.css';
 
@@ -23,6 +24,7 @@ function App() {
             <Route path="/clients/:id" element={<ClientDetail />} />
             <Route path="/programs" element={<ProgramList />} />
             <Route path="/programs/new" element={<ProgramForm />} />
+            <Route path="/programs/edit/:id" element={<ProgramEdit />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
